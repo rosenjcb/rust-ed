@@ -1,0 +1,12 @@
+[package]
+name = "rust-ed"
+version = "0.1.0"
+authors = ["Learn Java <learnjavadiscord@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossterm = "0.9.6"
+log = "0.4.6"
+stderrlog = "0.4.1"
