@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use crate::selection::Selection;
 use crossterm::{style, Color, Terminal, cursor, terminal, Colorize};
+use crate::gridcell::GridCell;
 
 pub enum Direction {
     Left,
@@ -13,14 +14,15 @@ pub enum Direction {
     Down,
 }
 
-pub struct Screen {
-    pub buffer: Vec<GridRow>,
-    pub view_loc: u16,
-    selection: Selection,
+pub struct Screen<'a> {
     terminal: Terminal,
+    view_loc: u16,
+    pub buffer: Vec<GridRow>,
+    selection: Selection,
+    highlight: Vec<(u16, u16)>,
 }
 
-impl Screen{
+impl Screen {
     pub fn new(x: i32, y: i32) -> Self {
         //let mut buffer: Vec<GridRow> = Vec::with_capacity(usize::from(y));
         let buffer = (0 .. y).map(|_| GridRow::new(x)).collect::<Vec<_>>();
@@ -30,7 +32,8 @@ impl Screen{
         let view_loc = 0;
         let terminal = terminal();
         let selection = Selection::new();
-        Screen{ buffer, view_loc, selection, terminal }
+        let highlight = vec![];
+        Screen{ terminal, view_loc, buffer, selection, highlight }
     }
 
     pub fn save(&self){
@@ -49,7 +52,34 @@ impl Screen{
         self.terminal.write(c);
     }
 
-    pub fn highlight(&mut self, c: char, coord: (u16, u16), dir: Direction) {
+    pub fn highlight(&mut self, dir: Direction) {
+        let coord = cursor().pos();
+        let cell = &self.buffer[coord.1 as usize].inner[coord.0 as usize];
+        let c = cell.c;
+
+        match dir {
+            Direction::Right => {
+                if self.highlight.len() == 0 {
+                    self.highlight.push(cell);
+                } else if cell as *const _ == self.highlight.last().expect("Cell not found").clone() as *const _ {
+                    print!("pie");
+                } else {
+                    self.highlight.clear();
+                    self.highlight.push(cell);
+                }
+                let s = c.to_string();
+                let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
+                print!("{}", highlight);
+            },
+
+            Direction::Left => {
+
+            },
+
+            _ => {
+
+            }
+        }
         self.selection.push(c, coord, dir);
         //let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
         //print!("{}", highlight);

@@ -79,8 +79,8 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen) -> bool {
                 KeyEvent::ShiftRight => {
                     let cursor = cursor();
                     let pos = cursor.pos();
-                    let c = screen.buffer[pos.1 as usize].inner[pos.0 as usize].c;
-                    screen.highlight(c, pos, Direction::Right);
+                    //let c = screen.buffer[pos.1 as usize].inner[pos.0 as usize].c;
+                    screen.highlight(Direction::Right);
                     /*let cursor = cursor();
                     let pos = cursor.pos();
                     let c = screen.buffer[pos.1 as usize].inner[pos.0 as usize].c;

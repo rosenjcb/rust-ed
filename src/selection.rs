@@ -4,70 +4,30 @@ use crate::screen::Direction;
 
 pub struct Selection {
     cursor: TerminalCursor,
-    clipboard: (Option<(u16,u16)>, Option<(u16,u16)>),
-    start: Option<(u16, u16)>,
-    end: Option<(u16, u16)>,
+    clipboard: String,
+    text: String,
+    //start: Option<(u16, u16)>,
+    //end: Option<(u16, u16)>,
 }
 
 impl Selection {
     pub fn new() -> Self {
         let cursor = cursor();
         //let (content, clipboard) = (String::from(""), String::from(""));
-        let clipboard: (Option<(u16, u16)>, Option<(u16, u16)>) = (None, None);
-        let start: Option<(u16, u16)> = None;
-        let end: Option<(u16, u16)> = None;
-        Selection { cursor, clipboard, start, end }
+        //let clipboard: (Option<(u16, u16)>, Option<(u16, u16)>) = (None, None);
+        let clipboard = String::from("");
+        let text = String::from("");
+        //let start: Option<(u16, u16)> = None;
+        //let end: Option<(u16, u16)> = None;
+        Selection { cursor, clipboard, text }
     }
 
     pub fn push(&mut self, c: char, coord: (u16, u16), dir: Direction) {
+        self.text.push(c);
         let s = c.to_string();
         let style = style(s.as_str());
         //let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
         //print!("{}", highlight);
-        match dir {
-            Direction::Right => {
-                match self.end {
-                    None => {
-                        self.start(coord);
-                        //self.end = Option(coord);
-                        let highlight = style.with(Color::Black).on(Color::Yellow);
-                        print!("{}", highlight);
-                    },
-
-                    Some(prev) => {
-                        if prev.0 == (coord.0 - 1) && prev.1 == coord.1 {
-                           //self.end = Option(coord);
-                            let highlight = style.with(Color::Black).on(Color::Yellow);
-                            print!("{}", highlight);
-                        } else if prev == coord {
-                            let highlight = style.with(Color::White).on(Color::Black);
-                            print!("{}", highlight);
-                        } else {
-                            self.start(coord);
-                            let highlight = style.with(Color::Black).on(Color::Yellow);
-                            print!("{}", highlight);
-                        }
-                    }
-                }
-            },
-
-            Direction::Left => {
-                match self.end {
-                    None => {
-                        self.start(coord);
-                    },
-
-                    Some(prev) => {
-                        //if(prev)
-                        self.start(coord);
-                    }
-                }
-            },
-
-            _ => {
-
-            }
-        }
     }
 
     fn start(&mut self, coord: (u16, u16)) {
@@ -85,12 +45,11 @@ impl Selection {
     }
 
     pub fn copy(&mut self) {
-        self.clipboard = (self.start,  self.end);
+        self.clipboard = self.text.to_string();
     }
 
-    pub fn paste(&mut self) {
-        self.start = self.clipboard.0;
-        self.end = self.clipboard.1;
+    pub fn paste(&mut self) -> &str {
+        return self.clipboard.as_str()
     }
 
     pub fn cut(&mut self) {
