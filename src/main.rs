@@ -92,7 +92,9 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen) -> bool {
 
                 },
                 KeyEvent::ShiftLeft => {
-
+                    let cursor = cursor();
+                    let pos = cursor.pos();
+                    screen.highlight(Direction::Left);
                 },
                 KeyEvent::Backspace => {
 
@@ -101,7 +103,7 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen) -> bool {
                      }*/
                 },
                 _ => {
-                    println!("{}", format!("OTHER: {:?}\n\n", k));
+                        println!("{}", format!("OTHER: {:?}\n\n", k));
                 }
             }
         }

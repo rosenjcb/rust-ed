@@ -6,6 +6,7 @@ use std::path::Path;
 use crate::selection::Selection;
 use crossterm::{style, Color, Terminal, cursor, terminal, Colorize};
 use crate::gridcell::GridCell;
+use std::collections::VecDeque;
 
 pub enum Direction {
     Left,
@@ -14,12 +15,12 @@ pub enum Direction {
     Down,
 }
 
-pub struct Screen<'a> {
+pub struct Screen {
     terminal: Terminal,
     view_loc: u16,
-    pub buffer: Vec<GridRow>,
+    buffer: Vec<GridRow>,
     selection: Selection,
-    highlight: Vec<(u16, u16)>,
+    highlight: VecDeque<(u16, u16)>,
 }
 
 impl Screen {
@@ -32,7 +33,7 @@ impl Screen {
         let view_loc = 0;
         let terminal = terminal();
         let selection = Selection::new();
-        let highlight = vec![];
+        let highlight = VecDeque::new();
         Screen{ terminal, view_loc, buffer, selection, highlight }
     }
 
@@ -53,82 +54,89 @@ impl Screen {
     }
 
     pub fn highlight(&mut self, dir: Direction) {
-        let coord = cursor().pos();
-        let cell = &self.buffer[coord.1 as usize].inner[coord.0 as usize];
-        let c = cell.c;
 
         match dir {
             Direction::Right => {
-                if self.highlight.len() == 0 {
-                    self.highlight.push(cell);
-                } else if cell as *const _ == self.highlight.last().expect("Cell not found").clone() as *const _ {
-                    print!("pie");
+                let cursor = &mut cursor();
+                let coord = cursor.pos();
+                let c = self.get_char(&coord);
+
+                let prev_coord = &(coord.0 - 1, coord.1);
+                let next_coord = &(coord.0 + 1, coord.1);
+
+                if self.highlight.contains(next_coord) {
+                    cursor.move_right(1);
+                    return;
+                }
+
+                if self.highlight.len() == 0 || self.highlight.back().expect("No coord found") == prev_coord {
+                    self.highlight.push_back(coord);
                 } else {
+                    let s: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
+                    let first = self.highlight.front().expect("No coord found");
+                    cursor.goto(first.0, first.1);
+                    print!("{}", s);
+                    cursor.goto(coord.0, coord.1);
                     self.highlight.clear();
-                    self.highlight.push(cell);
+                    self.highlight.push_back(coord);
                 }
                 let s = c.to_string();
                 let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
                 print!("{}", highlight);
+                self.selection.push(c, coord, dir);
             },
 
             Direction::Left => {
+                let cursor = &mut cursor();
+                cursor.move_left(1);
+                let coord = cursor.pos();
+                let c = self.get_char(&coord);
 
+                let prev_coord = &(coord.0 + 1, coord.1);
+                let next_coord = &(coord.0 - 1, coord.1);
+                if self.highlight.contains(next_coord) {
+                    cursor.move_left(1);
+                    return;
+                }
+
+                if self.highlight.len() == 0 || self.highlight.front().expect("No coord found") == prev_coord {
+                    self.highlight.push_front(coord);
+                } else {
+                    let s: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
+                    let first = self.highlight.front().expect("No coord found");
+                    cursor.goto(first.0, first.1);
+                    print!("{}", s);
+                    cursor.goto(coord.0, coord.1);
+                    self.highlight.clear();
+                    self.highlight.push_front(coord);
+                }
+                let s = c.to_string();
+                let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
+                print!("{}", highlight);
+                cursor.move_left(1);
+                //cursor.goto(coord.0 - 1, coord.1);
+                self.selection.push(c, coord, dir);
             },
 
             _ => {
 
             }
         }
-        self.selection.push(c, coord, dir);
-        //let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
-        //print!("{}", highlight);
-        /*match dir {
-            Direction::Right => {
+    }
 
-                match self.selection.prev {
-                    None => {
-                        self.selection.start(coord);
-                        self.selection.prev = Option(coord);
-                    },
+    /*pub fn cancel_highlight(&mut self, coord: &(u16, u16)) {
+        let cursor = cursor();
+        let s: String = self.highlight.iter().rev().map(|selection| self.get_char(selection)).collect();
+        let last = self.highlight.get(self.highlight.len() - 1).expect("No coord found");
+        cursor.goto(last.0, last.1);
+        print!("{}", s);
+        cursor.goto(coord.0, coord.1);
+        self.highlight.clear();
+        self.highlight.push_front(*coord);
+    }*/
 
-                    Some(prev) => {
-                        if prev.0 == (coord.0 - 1) && prev.1 == coord.1 {
-                            self.selection.prev = Option(coord);
-                        } else {
-                            self.selection.start(coord);
-                        }
-                    }
-                }
-            },
-
-            Direction::Left => {
-                match self.selection.prev {
-                    None => {
-                        self.selection.start(coord);
-                    },
-
-                    Some(prev) => {
-                        if(prev)
-                        self.selection.start(coord);
-                    }
-                }
-            },
-
-            _ => {
-                break;
-            }
-        }
-
-
-        if self.selection.prev == None {
-            let s = c.to_string();
-            //let d = "d".black().on_yellow();
-            let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow`);
-            //self.terminal.write(s);
-            print!("{}", highlight);
-            //self.terminal.write(highlight);
-        }*/
+    pub fn get_char(&self, coord: &(u16, u16)) -> char {
+        self.buffer[coord.1 as usize].inner[coord.0 as usize]
     }
 
     pub fn load(&mut self, filepath: &Path) {
