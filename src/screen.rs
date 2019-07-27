@@ -19,8 +19,8 @@ pub struct Screen {
     terminal: Terminal,
     view_loc: u16,
     buffer: Vec<GridRow>,
-    selection: Selection,
     highlight: VecDeque<(u16, u16)>,
+    clipboard: String
 }
 
 impl Screen {
@@ -34,7 +34,8 @@ impl Screen {
         let terminal = terminal();
         let selection = Selection::new();
         let highlight = VecDeque::new();
-        Screen{ terminal, view_loc, buffer, selection, highlight }
+        let clipboard= String::from("");
+        Screen{ terminal, view_loc, buffer, highlight, clipboard}
     }
 
     pub fn save(&self){
@@ -46,11 +47,23 @@ impl Screen {
 
     }
 
-    pub fn write(&mut self, c: char) {
+    pub fn write(&mut self, s: &str) {
         let cursor = cursor();
+        s.chars().for_each(|c| {
+            let pos = cursor.pos();
+            self.buffer[cursor.pos().1 as usize].write(cursor.pos().0  as i32, c);
+            self.terminal.write(c);
+        });
+    }
+
+    pub fn delete(&mut self) {
+        let mut cursor = cursor();
+        self.cancel_highlight(&cursor.pos());
+        cursor.move_left(1);
         let pos = cursor.pos();
-        self.buffer[cursor.pos().1 as usize].write(cursor.pos().0  as i32, c);
-        self.terminal.write(c);
+        self.buffer[pos.1 as usize].write(pos.0 as i32, ' ');
+        self.terminal.write(" ");
+        cursor.move_left(1);
     }
 
     pub fn highlight(&mut self, dir: Direction) {
@@ -62,9 +75,9 @@ impl Screen {
                 let c = self.get_char(&coord);
 
                 let prev_coord = &(coord.0 - 1, coord.1);
-                let next_coord = &(coord.0 + 1, coord.1);
+                //let next_coord = &(coord.0 + 1, coord.1);
 
-                if self.highlight.contains(next_coord) {
+                if self.highlight.contains(&coord) {
                     cursor.move_right(1);
                     return;
                 }
@@ -72,18 +85,13 @@ impl Screen {
                 if self.highlight.len() == 0 || self.highlight.back().expect("No coord found") == prev_coord {
                     self.highlight.push_back(coord);
                 } else {
-                    let s: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
-                    let first = self.highlight.front().expect("No coord found");
-                    cursor.goto(first.0, first.1);
-                    print!("{}", s);
-                    cursor.goto(coord.0, coord.1);
-                    self.highlight.clear();
+                    self.cancel_highlight(&coord);
                     self.highlight.push_back(coord);
                 }
                 let s = c.to_string();
                 let highlight = style(s.as_str()).with(Color::Black).on(Color::Yellow);
                 print!("{}", highlight);
-                self.selection.push(c, coord, dir);
+                //self.selection.push(c, coord, dir);
             },
 
             Direction::Left => {
@@ -93,8 +101,8 @@ impl Screen {
                 let c = self.get_char(&coord);
 
                 let prev_coord = &(coord.0 + 1, coord.1);
-                let next_coord = &(coord.0 - 1, coord.1);
-                if self.highlight.contains(next_coord) {
+                //let next_coord = &(coord.0 - 1, coord.1);
+                if self.highlight.contains(&coord) {
                     cursor.move_left(1);
                     return;
                 }
@@ -102,12 +110,7 @@ impl Screen {
                 if self.highlight.len() == 0 || self.highlight.front().expect("No coord found") == prev_coord {
                     self.highlight.push_front(coord);
                 } else {
-                    let s: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
-                    let first = self.highlight.front().expect("No coord found");
-                    cursor.goto(first.0, first.1);
-                    print!("{}", s);
-                    cursor.goto(coord.0, coord.1);
-                    self.highlight.clear();
+                    self.cancel_highlight(&coord);
                     self.highlight.push_front(coord);
                 }
                 let s = c.to_string();
@@ -115,25 +118,37 @@ impl Screen {
                 print!("{}", highlight);
                 cursor.move_left(1);
                 //cursor.goto(coord.0 - 1, coord.1);
-                self.selection.push(c, coord, dir);
+                //self.selection.push(c, coord, dir);
             },
-
-            _ => {
-
-            }
+            _ => {}
         }
     }
 
-    /*pub fn cancel_highlight(&mut self, coord: &(u16, u16)) {
+    pub fn cancel_highlight(&mut self, coord: &(u16, u16)) {
+        if self.highlight.is_empty() {
+            return;
+        }
         let cursor = cursor();
-        let s: String = self.highlight.iter().rev().map(|selection| self.get_char(selection)).collect();
-        let last = self.highlight.get(self.highlight.len() - 1).expect("No coord found");
-        cursor.goto(last.0, last.1);
+        let s: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
+        let first = self.highlight.front().expect("No coord found");
+        cursor.goto(first.0, first.1);
         print!("{}", s);
         cursor.goto(coord.0, coord.1);
         self.highlight.clear();
-        self.highlight.push_front(*coord);
-    }*/
+    }
+
+    pub fn cut(&mut self) {
+        //TODO
+    }
+
+    pub fn get_highlight(&mut self) -> String {
+        let selection: String = self.highlight.iter().map(|selection| self.get_char(selection)).collect();
+        return selection;
+    }
+
+    pub fn replace(&mut self, clipboard: &str) {
+        self.write(clipboard);
+    }
 
     pub fn get_char(&self, coord: &(u16, u16)) -> char {
         self.buffer[coord.1 as usize].inner[coord.0 as usize]
