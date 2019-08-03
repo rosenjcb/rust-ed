@@ -1,26 +1,27 @@
 use crate::gridcell::{GridCell, Color};
 use crossterm::{Terminal, terminal, TerminalCursor, cursor};
+use std::collections::VecDeque;
 
 pub struct GridRow {
-    pub inner: Vec<char>,
+    pub inner: VecDeque<char>,
     terminal: Terminal,
     cursor: TerminalCursor,
 }
 
 impl GridRow {
     pub fn new(columns: i32) -> Self {
-        let mut inner: Vec<char> = Vec::with_capacity(columns as usize);
+        let mut inner: VecDeque<char> = VecDeque::with_capacity(columns as usize);
         let terminal = terminal();
         let cursor = cursor();
         //(0 .. columns).map(|_| GridRow::new(x)).collect::<Vec<_>>()
         for i in 0..columns {
             //let cell: GridCell = GridCell{c: ' ', fg: Color::WHITE, bg: Color::BLACK};
-            inner.push(' ');
+            inner.push_back(' ');
         }
         GridRow { inner, terminal, cursor }
     }
 
-    pub fn write(&mut self, cell_index: i32, c: char) {
+    /*pub fn write(&mut self, cell_index: i32, c: char) {
         self.inner[cell_index as usize] = c;
     }
 
@@ -30,7 +31,7 @@ impl GridRow {
             self.cursor.goto(index as u16, line_number);
             self.terminal.write(cell);
         }
-    }
+    }*/
 
     pub fn getline(&self) -> String {
         let s: String = self.inner.iter().map(|cell| cell).collect();

@@ -49,9 +49,10 @@ impl Screen {
 
     pub fn write(&mut self, s: &str) {
         let cursor = cursor();
+        let mut overflow = String::new();
         s.chars().for_each(|c| {
-            let pos = cursor.pos();
-            self.buffer[cursor.pos().1 as usize].write(cursor.pos().0  as i32, c);
+            self.buffer[cursor.pos().1 as usize].inner.insert(cursor.pos().0 as usize, c);
+            overflow.append(self.buffer[cursor.pos().1 as usize].inner.pop_back().expect("No char found"));
             self.terminal.write(c);
         });
     }
@@ -61,7 +62,7 @@ impl Screen {
         self.cancel_highlight(&cursor.pos());
         cursor.move_left(1);
         let pos = cursor.pos();
-        self.buffer[pos.1 as usize].write(pos.0 as i32, ' ');
+        self.buffer[pos.1 as usize].inner.remove(pos.0 as usize);
         self.terminal.write(" ");
         cursor.move_left(1);
     }
