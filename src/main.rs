@@ -44,10 +44,8 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen, clipboard: &m
         InputEvent::Keyboard(k) => {
             match k {
                 KeyEvent::Char(c) => match c {
-                    'q' => {
+                    's' => {
                         //info!("The 'q' key is hit and the program is not listening to input anymore.\n\n");
-                        screen.save();
-                        return true;
                     },
                     'l' => {
                         let path = Path::new("intro.txt");
@@ -96,12 +94,18 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen, clipboard: &m
                 },
                 KeyEvent::Ctrl('v') => {
                     screen.write(clipboard.inner.as_str());
+                },
+                KeyEvent::Ctrl('s') => {
+                    screen.save();
                 }
                 KeyEvent::Backspace => {
                     screen.delete();
                 },
+                KeyEvent::Esc => {
+                    return true;
+                }
                 _ => {
-                        println!("{}", format!("OTHER: {:?}\n\n", k));
+                        //println!("{}", format!("OTHER: {:?}\n\n", k));
                 }
             }
         }

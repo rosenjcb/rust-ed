@@ -49,12 +49,17 @@ impl Screen {
 
     pub fn write(&mut self, s: &str) {
         let cursor = cursor();
-        let mut overflow = String::new();
+        self.cancel_highlight(&cursor.pos());
+        let pos = cursor.pos();
+        //let back_vec: Vec<_> = self.buffer[cursor.pos().1 as usize].inner.into_iter().collect();
+        //let back_string: String = back_vec[0..5].iter().copied().collect();
         s.chars().for_each(|c| {
-            self.buffer[cursor.pos().1 as usize].inner.insert(cursor.pos().0 as usize, c);
-            overflow.append(self.buffer[cursor.pos().1 as usize].inner.pop_back().expect("No char found"));
-            self.terminal.write(c);
+            self.buffer[pos.1 as usize].inner.insert(pos.0 as usize, c);
         });
+        let line: String = self.buffer[cursor.pos().1 as usize].inner.iter().collect();
+        cursor.goto(0, pos.1);
+        self.terminal.write(line.as_str());
+        cursor.goto(pos.0 + s.len() as u16, pos.1);
     }
 
     pub fn delete(&mut self) {
@@ -63,6 +68,7 @@ impl Screen {
         cursor.move_left(1);
         let pos = cursor.pos();
         self.buffer[pos.1 as usize].inner.remove(pos.0 as usize);
+        self.buffer[pos.1 as usize].inner.insert(pos.0 as usize, ' ');
         self.terminal.write(" ");
         cursor.move_left(1);
     }

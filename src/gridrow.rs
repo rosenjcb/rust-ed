@@ -10,14 +10,14 @@ pub struct GridRow {
 
 impl GridRow {
     pub fn new(columns: i32) -> Self {
-        let mut inner: VecDeque<char> = VecDeque::with_capacity(columns as usize);
+        let inner: VecDeque<char> = VecDeque::with_capacity(columns as usize);
         let terminal = terminal();
         let cursor = cursor();
         //(0 .. columns).map(|_| GridRow::new(x)).collect::<Vec<_>>()
-        for i in 0..columns {
+        /*for i in 0..columns {
             //let cell: GridCell = GridCell{c: ' ', fg: Color::WHITE, bg: Color::BLACK};
             inner.push_back(' ');
-        }
+        }*/
         GridRow { inner, terminal, cursor }
     }
 
