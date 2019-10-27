@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{LineWriter, Write};
 use log::{debug, info, warn};
 use std::path::Path;
-use rust_ed::clipboard::Clipboard;
+use rust_ed::clipboard::{Clipboard, MemoryClipboard};
 
 
 fn main() {
@@ -24,7 +24,7 @@ fn main() {
 
         cursor.show().expect("Cannot display cursor");
         let mut screen = Screen::new(80, 24);
-        let mut clipboard = Clipboard::new();
+        let mut clipboard = MemoryClipboard::new();
         //let mut selection = Selection::new(&screen);
         loop {
             let event = sync_stdin.next();
@@ -39,7 +39,7 @@ fn main() {
     }
 }
 
-fn process_input_event(key_event: InputEvent, screen: &mut Screen, clipboard: &mut Clipboard) -> bool {
+fn process_input_event(key_event: InputEvent, screen: &mut Screen, clipboard: &mut impl Clipboard) -> bool {
     match key_event {
         InputEvent::Keyboard(k) => {
             match k {
@@ -90,10 +90,10 @@ fn process_input_event(key_event: InputEvent, screen: &mut Screen, clipboard: &m
                     //screen.select_all();
                 },
                 KeyEvent::Ctrl('c') => {
-                    clipboard.inner = String::from(screen.get_highlight());
+                    clipboard.copy(String::from(screen.get_highlight()));
                 },
                 KeyEvent::Ctrl('v') => {
-                    screen.write(clipboard.inner.as_str());
+                    screen.write(clipboard.paste().as_str());
                 },
                 KeyEvent::Ctrl('s') => {
                     screen.save();
