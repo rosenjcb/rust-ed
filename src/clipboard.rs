@@ -8,7 +8,7 @@ pub trait Clipboard {
     /// Replace the current stored data in the clipboard with `content`
     fn copy<T>(&mut self, content: T)
     where
-        T: AsRef<str>;
+        T: Into<String>;
 }
 
 /// Just  a wrapper around a String for now... maybe it'll hold formatting someday.
@@ -31,8 +31,8 @@ impl Clipboard for MemoryClipboard {
 
     fn copy<T>(&mut self, content: T)
     where
-        T: AsRef<str>,
+        T: Into<String>,
     {
-        self.inner = String::from(content.as_ref());
+        self.inner = content.into();
     }
 }
