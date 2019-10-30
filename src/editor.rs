@@ -208,8 +208,8 @@ impl Editor {
     }
 
     /// Delete the cell under the cursor and then shift the cursor one to the left
-    pub fn delete(&mut self) {
-        self.delete_at(self.cursor.clone());
+    pub fn delete(&mut self) -> Option<CharCel> {
+        let val = self.delete_at(self.cursor); // delete the character before the cursor
 
         let Vector2(x, y) = self.cursor;
 
@@ -221,10 +221,12 @@ impl Editor {
             // otherwise move one character to the left
             self.move_cursor((-1, 0));
         }
+
+        val
     }
 
     /// Delete the cell at `location` it it exists
-    pub fn delete_at(&mut self, location: impl Into<Vector2>) {
+    pub fn delete_at(&mut self, location: impl Into<Vector2>) -> Option<CharCel> {
         let Vector2(x, y) = self.clamp_vector(location.into());
 
         if let Some(row) = self.buffer.get_mut(y as usize) {
@@ -235,14 +237,16 @@ impl Editor {
                     .get_mut((y - 1) as usize)
                     .unwrap()
                     .append(&mut x);
-            } else if (x as usize) < row.len() {
-                row.remove(x as usize);
-            } else if row.len() != 0 {
+            } else if x != 0 && (x as usize) < row.len() {
+                return Some(row.remove((x - 1) as usize));
+            } else if x != 0 && row.len() != 0 {
                 // if the cursor is in a location greater than the last location in the line
                 // delete the last element in the buffer
-                row.remove(row.len() - 1);
+                return Some(row.remove(row.len() - 1));
             }
         }
+
+        None
     }
 }
 
@@ -263,6 +267,45 @@ impl std::fmt::Display for Editor {
 #[cfg(test)]
 mod test {
     use super::*;
+    const TEST_STRING: &'static str = include_str!("../resources/sample_text.txt");
+
+    #[test]
+    fn test_editor_cursor_movement() {
+        let mut editor = Editor::from(TEST_STRING);
+
+        for mut row in 0..(300 / 5) {
+            for mut col in 0..(300 / 5) {
+                let (row, col) = ((row * 5) + 1, (col * 5) + 1);
+                let before_set_cursor = editor.cursor.clone();
+                editor.set_cursor((col, row));
+                let before_write = editor.cursor.clone();
+                editor.write('\0');
+                let after_write = editor.cursor.clone();
+                if let Some(x) = editor.delete() {
+                    if x.char != '\0' {
+                        panic!(
+                            "\
+                             deleted character was not '\\0':\n\
+                             col, row: {:?}\nbefore set cursor: {:?},\n\
+                             after deletion: {:?},\n\
+                             before write: {:?},\n\
+                             after write: {:?}",
+                            (col, row),
+                            before_set_cursor,
+                            editor.cursor,
+                            before_write,
+                            after_write
+                        );
+                    }
+                }
+            }
+        }
+
+        assert_eq!(
+            editor.to_string(),
+            TEST_STRING.to_string().replace("\r\n", "\n")
+        );
+    }
 
     #[test]
     fn test_editor() {
@@ -349,7 +392,7 @@ mod test {
             "\n\nso nanoka",
             "have a good smoke\nmokou\n",
             "hello\nworld",
-            include_str!("../resources/sample_text.txt"),
+            TEST_STRING,
             "\r\r\r\r\r\n",
             "\rhome alone on a friday night\n\n\r",
         ];
