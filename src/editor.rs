@@ -398,7 +398,7 @@ mod test {
         ];
 
         for i in test_cases {
-            let i = i.replace("\r\n", "\n").replace("\r", "");
+            let i = i.replace("\r", "");
             let editor = Editor::from(i.to_string());
             assert_eq!(editor.to_string(), i.to_string());
         }
