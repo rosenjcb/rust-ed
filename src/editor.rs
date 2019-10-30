@@ -205,7 +205,6 @@ impl Editor {
         }
     }
 
-    // TODO: Delete a line if deletion occurs at character 0
     /// Delete the cell at `location` it it exists
     pub fn delete_at(&mut self, location: impl Into<Vector2>) {
         let Vector2(x, y) = self.clamp_vector(location.into());
