@@ -192,7 +192,17 @@ impl Editor {
     /// Delete the cell under the cursor and then shift the cursor one to the left
     pub fn delete(&mut self) {
         self.delete_at(self.cursor.clone());
-        self.move_cursor((-1, 0));
+
+        let Vector2(x, y) = self.cursor;
+
+        // a line has been deleted, move to the end of the previous line
+        if self.cursor.0 == 0 && y >= 1 {
+            let len = self.buffer.get((y - 1) as usize).unwrap().len();
+            self.set_cursor(Vector2(len as i32, y - 1));
+        } else {
+            // otherwise move one character to the left
+            self.move_cursor((-1, 0));
+        }
     }
 
     // TODO: Delete a line if deletion occurs at character 0
@@ -201,7 +211,14 @@ impl Editor {
         let Vector2(x, y) = self.clamp_vector(location.into());
 
         if let Some(row) = self.buffer.get_mut(y as usize) {
-            if (x as usize) < row.len() {
+            if x == 0 && y >= 1 {
+                let mut x = self.buffer.remove(y as usize);
+                // append the current line to the previous line
+                self.buffer
+                    .get_mut((y - 1) as usize)
+                    .unwrap()
+                    .append(&mut x);
+            } else if (x as usize) < row.len() {
                 row.remove(x as usize);
             } else {
                 // if the cursor is in a location greater than the last location in the line
@@ -272,5 +289,20 @@ mod test {
         editor.write('\n');
 
         assert_eq!(editor.buffer.len(), 3);
+
+        editor.set_cursor((0, 1));
+        editor.delete();
+
+        assert_eq!(editor.buffer.len(), 2);
+
+        // assert that the cursor has move to the previous line
+        assert_eq!(editor.cursor.1, 0);
+
+        // move the cursor to the very last line and delete it
+        editor.set_cursor((0, 9999));
+        editor.delete();
+
+        assert_eq!(editor.to_string(), test_string);
+        assert_eq!(editor.buffer.len(), 1);
     }
 }
