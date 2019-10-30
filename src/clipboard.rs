@@ -117,7 +117,7 @@ impl Clipboard for OsClipboard {
 mod test {
     use super::*;
 
-//  const TEST_DATA: &'static str = "hello world こんにちは世界";
+    //  const TEST_DATA: &'static str = "hello world こんにちは世界";
     const TEST_DATA: &'static str = include_str!("../resources/sample_text.txt");
 
     #[test]

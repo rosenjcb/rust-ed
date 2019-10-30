@@ -1,5 +1,5 @@
-use crossterm::{Terminal, TerminalCursor, cursor, Color, style, StyledObject};
 use crate::screen::Direction;
+use crossterm::{cursor, style, Color, StyledObject, Terminal, TerminalCursor};
 //use crate::coord::Coord;
 
 pub struct Selection {
@@ -17,7 +17,7 @@ impl Selection {
         let clipboard = String::from("");
         //let start: Option<(u16, u16)> = None;
         //let end: Option<(u16, u16)> = None;
-        Selection { cursor, clipboard}
+        Selection { cursor, clipboard }
     }
 
     /*pub fn push(&mut self, c: char, coord: (u16, u16), dir: Direction) {
@@ -42,12 +42,12 @@ impl Selection {
         //self.end = Some(coord);
     }*/
 
-    pub fn push_string(&mut self, string: &str)  {
+    pub fn push_string(&mut self, string: &str) {
         self.clipboard = String::from(string);
     }
 
     pub fn peek_string(&mut self) -> &str {
-        return self.clipboard.as_str()
+        return self.clipboard.as_str();
     }
 
     /*pub fn pop_string(&mut self) -> &str {
