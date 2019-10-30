@@ -1,5 +1,5 @@
-use crate::gridcell::{GridCell, Color};
-use crossterm::{Terminal, terminal, TerminalCursor, cursor};
+use crate::gridcell::{Color, GridCell};
+use crossterm::{cursor, terminal, Terminal, TerminalCursor};
 use std::collections::VecDeque;
 
 pub struct GridRow {
@@ -18,7 +18,11 @@ impl GridRow {
             //let cell: GridCell = GridCell{c: ' ', fg: Color::WHITE, bg: Color::BLACK};
             inner.push_back(' ');
         }*/
-        GridRow { inner, terminal, cursor }
+        GridRow {
+            inner,
+            terminal,
+            cursor,
+        }
     }
 
     /*pub fn write(&mut self, cell_index: i32, c: char) {

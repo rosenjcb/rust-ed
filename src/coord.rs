@@ -3,8 +3,8 @@ pub struct Coord {
     pub y: u16,
 }
 
-impl Coord{
-    pub fn new(x: u16, y: u16) -> Self{
-        Coord{x, y}
+impl Coord {
+    pub fn new(x: u16, y: u16) -> Self {
+        Coord { x, y }
     }
 }
