@@ -56,8 +56,27 @@ pub struct Editor {
     buffer: Grid,
     cursor: Vector2,
     select_start: Option<Vector2>,
-    select_end: Option<Vector2>,
     selecting: bool,
+}
+
+/// Create an editor for types which implement Into<String>
+impl<T: Into<String>> From<T> for Editor {
+    fn from(s: T) -> Self {
+        let mut editor = Editor::new();
+        let s = s.into();
+
+        editor.buffer = s
+            .lines()
+            .map(|x| x.chars().map(|x| CharCel::from(x)).collect())
+            .collect();
+
+        // include the extra new line at the end, .lines omits this.
+        if s.ends_with('\n') || s.ends_with("\r\n") {
+            editor.buffer.push(Vec::new());
+        }
+
+        editor
+    }
 }
 
 impl Editor {
@@ -67,7 +86,6 @@ impl Editor {
             buffer: Grid::new(),
             cursor: Vector2(0, 0),
             select_start: None,
-            select_end: None,
             selecting: false,
         };
     }
@@ -228,9 +246,16 @@ impl Editor {
     }
 }
 
+/// Return the contents of the buffer as a string
 impl std::fmt::Display for Editor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text: String = self.buffer.iter().flatten().map(|x| x.char).collect();
+        let text: String = self
+            .buffer
+            .iter()
+            .map(|x| x.iter().map(|x| x.char).collect::<String>())
+            .collect::<Vec<String>>()
+            .join("\n");
+
         write!(f, "{}", text)
     }
 }
@@ -303,5 +328,28 @@ mod test {
 
         assert_eq!(editor.to_string(), test_string);
         assert_eq!(editor.buffer.len(), 1);
+    }
+
+    #[test]
+    // TODO : Consider removing carriage returns within the editor function
+    // make sure the output is equal to the input
+    // to make this work you have to transform \r\n to \n
+    fn test_editor_from_string() {
+        let test_cases = vec![
+            "please wait warmly",
+            "\n\n",
+            "\n\nso nanoka",
+            "have a good smoke\nmokou\n",
+            "hello\nworld",
+            include_str!("../resources/sample_text.txt"),
+            "\r\r\r\r\r\n",
+            "\rhome alone on a friday night\n\n\r",
+        ];
+
+        for i in test_cases {
+            let i = i.replace("\r\n", "\n").replace("\r", "");
+            let editor = Editor::from(i.to_string());
+            assert_eq!(editor.to_string(), i.to_string());
+        }
     }
 }
