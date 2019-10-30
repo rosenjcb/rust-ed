@@ -36,7 +36,7 @@ impl From<char> for CharCel {
 type Grid = Vec<Vec<CharCel>>;
 
 /// Very simple vector implementation
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vector2(i32, i32);
 impl Vector2 {
     /// Add two vectors together
@@ -237,7 +237,7 @@ impl Editor {
                     .append(&mut x);
             } else if (x as usize) < row.len() {
                 row.remove(x as usize);
-            } else {
+            } else if row.len() != 0 {
                 // if the cursor is in a location greater than the last location in the line
                 // delete the last element in the buffer
                 row.remove(row.len() - 1);
@@ -328,6 +328,14 @@ mod test {
 
         assert_eq!(editor.to_string(), test_string);
         assert_eq!(editor.buffer.len(), 1);
+
+        // delete all characters in editor
+        editor.set_cursor((9999, 9999));
+        for i in 0..50 {
+            println!("{:?}", editor.cursor);
+            editor.delete();
+        }
+        assert_eq!(editor.to_string(), "");
     }
 
     #[test]
