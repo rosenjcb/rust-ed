@@ -326,7 +326,17 @@ impl Editor {
     }
 
     /// Delete the cell under the cursor and then shift the cursor one to the left
+    ///
+    /// # Panics
+    /// If `selecting` is true and `select_start` is `none`
     pub fn delete(&mut self) -> Option<CharCel> {
+        // delete the entire selection if a current selection is in progress
+        if self.selecting {
+            self.selecting = false;
+            self.cut_range(self.select_start.unwrap(), self.cursor.clone());
+            self.select_start = None;
+        }
+
         // store the original length of the previous row to jump to when the line below it is deleted
         let previous_row_length = if self.cursor.1 > 0 {
             self.buffer
