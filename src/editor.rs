@@ -192,6 +192,25 @@ impl Editor {
         self.selecting = false;
     }
 
+    /// copy the selected text
+    pub fn copy(&self) -> Option<Vec<CharCel>> {
+        if self.selecting {
+            Some(self.copy_range(self.select_start.unwrap(), self.cursor))
+        } else {
+            None
+        }
+    }
+
+    /// cut the selected text
+    pub fn cut(&mut self) -> Option<Vec<CharCel>> {
+        if self.selecting {
+            self.selecting = false;
+            Some(self.cut_range(self.select_start.unwrap(), self.cursor))
+        } else {
+            None
+        }
+    }
+
     /// Copy the text at location `from` to location `to`
     pub fn copy_range<T: Into<Vector2>>(&self, from: T, to: T) -> Vec<CharCel> {
         use std::cmp::{max, min};
@@ -337,7 +356,6 @@ impl Editor {
         if self.selecting {
             self.selecting = false;
             self.cut_range(self.select_start.unwrap(), self.cursor.clone());
-            self.select_start = None;
         }
 
         // store the original length of the previous row to jump to when the line below it is deleted
