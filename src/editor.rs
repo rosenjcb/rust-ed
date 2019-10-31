@@ -1,6 +1,8 @@
 //! editor state. controls operations such as reading and writing text.
 #![allow(unused_variables, dead_code)]
 
+use std::collections::VecDeque;
+
 /// Information for a particular character cell.
 /// Contains color values and other metadata
 #[derive(Copy, Clone)]
@@ -36,12 +38,32 @@ impl From<char> for CharCel {
 type Grid = Vec<Vec<CharCel>>;
 
 /// Very simple vector implementation
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vector2(i32, i32);
 impl Vector2 {
     /// Add two vectors together
     fn add(&self, a: &Self) -> Self {
         Self(self.0 + a.0, self.1 + a.1)
+    }
+}
+
+impl Eq for Vector2 {}
+
+impl PartialOrd for Vector2 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Vector2 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.eq(other) {
+            std::cmp::Ordering::Equal
+        } else if self.1 < other.1 || (self.1 == other.1 && self.0 < other.0) {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
     }
 }
 
@@ -150,6 +172,102 @@ impl Editor {
         }
     }
 
+    /// begin selecting from the current location of the cursor
+    pub fn begin_select(&mut self) {
+        self.begin_select_at(self.cursor)
+    }
+
+    /// set the selection to start from the given coordinate
+    pub fn begin_select_at(&mut self, loc: impl Into<Vector2>) {
+        self.select_start = Some(loc.into());
+        self.selecting = true;
+    }
+
+    /// Clear the currently selected location.
+    pub fn clear_selection(&mut self) {
+        self.select_start = None;
+        self.selecting = false;
+    }
+
+    /// Copy the text at location `from` to location `to`
+    pub fn copy_range<T: Into<Vector2>>(&self, from: T, to: T) -> Vec<CharCel> {
+        use std::cmp::{max, min};
+        let (from, to) = (self.clamp_vector(from.into()), self.clamp_vector(to.into()));
+        let start = min(from, to);
+        let end = max(from, to);
+
+        let mut data = Vec::new();
+
+        let mut position = start.clone();
+        while position < end {
+            println!("{:?}", position);
+            let row = self.buffer.get(position.1 as usize).unwrap();
+
+            // move to the next row when the end of a line has been reached
+            if position.0 as usize == row.len() {
+                position = position.add(&Vector2(0, 1));
+                position.0 = 0;
+                data.push(CharCel::from('\n'));
+                continue;
+            }
+
+            data.push(row.get(position.0 as usize).unwrap().clone());
+
+            // move to the next character
+            position = position.add(&Vector2(1, 0));
+        }
+
+        data
+    }
+
+    /// cut the text from location from, to location to
+    pub fn cut_range<T: Into<Vector2>>(&mut self, from: T, to: T) -> Vec<CharCel> {
+        use std::cmp::{max, min};
+
+        let (from, to) = (self.clamp_vector(from.into()), self.clamp_vector(to.into()));
+
+        let original_cursor = self.cursor.clone();
+
+        let start = min(from, to);
+        let end = max(from, to);
+
+        let mut buffer = VecDeque::<CharCel>::new();
+        self.set_cursor(end);
+
+        let mut rows = 0;
+        let mut cols = 0;
+        while self.cursor > start {
+            println!("{:?}, {:?}, {:?}", self.cursor, start, end);
+            if let Some(x) = self.delete() {
+                match x.char {
+                    '\n' => {
+                        rows += 1;
+                        cols = 0;
+                    }
+                    _ => cols += 1,
+                }
+                buffer.push_front(x);
+            } else {
+                break;
+            }
+        }
+
+        let original_cursor = if original_cursor > start && original_cursor < end {
+            start
+        } else if original_cursor.1 == end.1 {
+            original_cursor.add(&Vector2(-cols, 0))
+        } else if original_cursor > end {
+            original_cursor.add(&Vector2(0, -rows))
+        } else {
+            original_cursor
+        };
+
+        // restore the cursor to it's original location after deleting the text
+        self.set_cursor(original_cursor);
+
+        Vec::from(buffer)
+    }
+
     /// After writing, the cursor location will be moved `content.len()` characters to the right
     pub fn write(&mut self, content: char) {
         self.write_at(self.cursor.clone(), content);
@@ -209,14 +327,24 @@ impl Editor {
 
     /// Delete the cell under the cursor and then shift the cursor one to the left
     pub fn delete(&mut self) -> Option<CharCel> {
-        let val = self.delete_at(self.cursor); // delete the character before the cursor
+        // store the original length of the previous row to jump to when the line below it is deleted
+        let previous_row_length = if self.cursor.1 > 0 {
+            self.buffer
+                .get(self.cursor.1 as usize - 1)
+                .map(|x| x.len())
+                .unwrap()
+        } else {
+            0
+        };
 
-        let Vector2(x, y) = self.cursor;
+        // delete the character before the cursor
+        let val = self.delete_at(self.cursor);
 
-        // a line has been deleted, move to the end of the previous line
+        let Vector2(_, y) = self.cursor;
+
+        // a line has been deleted, move to the previous line
         if self.cursor.0 == 0 && y >= 1 {
-            let len = self.buffer.get((y - 1) as usize).unwrap().len();
-            self.set_cursor(Vector2(len as i32, y - 1));
+            self.set_cursor((previous_row_length as i32, y - 1));
         } else {
             // otherwise move one character to the left
             self.move_cursor((-1, 0));
@@ -237,6 +365,7 @@ impl Editor {
                     .get_mut((y - 1) as usize)
                     .unwrap()
                     .append(&mut x);
+                return Some(CharCel::from('\n'));
             } else if x != 0 && (x as usize) < row.len() {
                 return Some(row.remove((x - 1) as usize));
             } else if x != 0 && row.len() != 0 {
@@ -267,15 +396,59 @@ impl std::fmt::Display for Editor {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::cmp::Ordering;
+
     const TEST_STRING: &'static str = include_str!("../resources/sample_text.txt");
+
+    #[test]
+    fn test_vector_cmp() {
+        let test_cases = vec![
+            (0, 0, 1, 1, Ordering::Less),
+            (10, 0, 0, 0, Ordering::Greater),
+            (10, 10, 10, 10, Ordering::Equal),
+            (10, 10, 11, 0, Ordering::Greater),
+        ];
+
+        for (x1, y1, x2, y2, res) in test_cases {
+            assert_eq!(Vector2(x1, y1).cmp(&Vector2(x2, y2)), res);
+        }
+    }
+
+    // ensure that cut and copy produce the same results
+    #[test]
+    fn test_editor_copy_range() {
+        let mut editor = Editor::from(TEST_STRING);
+
+        #[rustfmt::skip]
+        let test_cases = vec![
+            (0, 0, 6, 1),
+            (20, 20, 0, 100),
+            (100, 29, 3, 40)
+        ];
+
+        for (x, y, x2, y2) in test_cases {
+            let copy = editor
+                .copy_range((x, y), (x2, y2))
+                .iter()
+                .map(|x| x.char)
+                .collect::<String>();
+            let cut = editor
+                .cut_range((x, y), (x2, y2))
+                .iter()
+                .map(|x| x.char)
+                .collect::<String>();
+
+            assert_eq!(copy, cut)
+        }
+    }
 
     #[test]
     fn test_editor_cursor_movement() {
         let mut editor = Editor::from(TEST_STRING);
 
-        for mut row in 0..(300 / 5) {
-            for mut col in 0..(300 / 5) {
-                let (row, col) = ((row * 5) + 1, (col * 5) + 1);
+        for row in 0..(300 / 5) {
+            for col in 0..(300 / 5) {
+                let (row, col) = ((row * 5), (col * 5));
                 let before_set_cursor = editor.cursor.clone();
                 editor.set_cursor((col, row));
                 let before_write = editor.cursor.clone();
