@@ -1,7 +1,6 @@
 //! editor state. controls operations such as reading and writing text.
 #![allow(unused_variables, dead_code)]
 
-// TODO: add cut, and copy functions that operate on the current selection
 // TODO: Make the write function erase the current selection before beginning a write
 
 use std::collections::VecDeque;
