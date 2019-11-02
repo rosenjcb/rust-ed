@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 /// Contains color values and other metadata
 #[derive(Copy, Clone)]
 pub struct CharCel {
-    char: char,
+    pub char: char,
     fg_on: bool,
     bg_on: bool,
     fg: u16,
@@ -41,11 +41,17 @@ type Grid = Vec<Vec<CharCel>>;
 
 /// Very simple vector implementation
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Vector2(i32, i32);
+pub struct Vector2(pub i32, pub i32);
 impl Vector2 {
     /// Add two vectors together
-    fn add(&self, a: &Self) -> Self {
+    pub fn add(&self, a: &Self) -> Self {
         Self(self.0 + a.0, self.1 + a.1)
+    }
+    pub fn x(&self) -> i32 {
+        self.0
+    }
+    pub fn y(&self) -> i32 {
+        self.1
     }
 }
 
@@ -208,6 +214,19 @@ impl Editor {
         } else {
             None
         }
+    }
+
+    /// return the character at location
+    pub fn get_cell(&self, location: impl Into<Vector2>) -> Option<CharCel> {
+        let location = location.into();
+
+        self.buffer
+            .get(location.y() as usize)
+            .map(|row| row.get(location.x() as usize).map(|x| x.clone()))
+            .and_then(|x| match x {
+                Some(x) => Some(x),
+                None => None,
+            })
     }
 
     /// Copy the text at location `from` to location `to`
