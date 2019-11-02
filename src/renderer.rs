@@ -22,8 +22,12 @@ impl Rect {
         self.width * self.height
     }
 
-    pub fn x(&self) -> i32 { self.location.x() }
-    pub fn y(&self) -> i32 { self.location.y() }
+    pub fn x(&self) -> i32 {
+        self.location.x()
+    }
+    pub fn y(&self) -> i32 {
+        self.location.y()
+    }
 }
 
 pub trait Renderer {
@@ -47,7 +51,7 @@ impl Renderer for StringRenderer {
                     screen.push(cell.char);
                 } else if x >= 0 {
                     // conclude this loop and continue to the next line when no characters are found
-                    break
+                    break;
                 } else {
                     screen.push(' ');
                 }
@@ -61,23 +65,23 @@ impl Renderer for StringRenderer {
 
 #[cfg(test)]
 mod tests {
-//    use super::*;
-//    const SAMPLE_TEXT: &'static str = include_str!("../resources/sample_text.txt");
+    //    use super::*;
+    //    const SAMPLE_TEXT: &'static str = include_str!("../resources/sample_text.txt");
 
-//    #[test]
-//    fn test_string_renderer() {
-//        let editor = Editor::from(SAMPLE_TEXT);
-//        let renderer = StringRenderer();
-//
-//        let renderOpts = RenderOpts {
-//            view: Rect {
-//                location: Vector2(0, 0),
-//                width: 180,
-//                height: 25,
-//            }
-//        };
-//
-//        let text = renderer.render(&editor, renderOpts);
-//        panic!("\n{}", text);
-//    }
+    //    #[test]
+    //    fn test_string_renderer() {
+    //        let editor = Editor::from(SAMPLE_TEXT);
+    //        let renderer = StringRenderer();
+    //
+    //        let renderOpts = RenderOpts {
+    //            view: Rect {
+    //                location: Vector2(0, 0),
+    //                width: 180,
+    //                height: 25,
+    //            }
+    //        };
+    //
+    //        let text = renderer.render(&editor, renderOpts);
+    //        panic!("\n{}", text);
+    //    }
 }

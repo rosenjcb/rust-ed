@@ -4,9 +4,13 @@ extern crate stderrlog;
 
 pub mod clipboard;
 mod coord;
+
+mod application;
 mod editor;
+mod renderer;
+
 mod gridcell;
 mod gridrow;
-mod renderer;
+
 pub mod screen;
 mod selection;
