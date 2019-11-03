@@ -247,6 +247,10 @@ impl Editor {
             })
     }
 
+    pub fn get_row(&self, line: i32) -> Option<&Vec<CharCel>> {
+        self.buffer.get(line as usize)
+    }
+
     /// Copy the text at location `from` to location `to`
     pub fn copy_range<T: Into<Vector2>>(&self, from: T, to: T) -> Vec<CharCel> {
         use std::cmp::{max, min};

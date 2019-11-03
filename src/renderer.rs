@@ -52,7 +52,27 @@ pub trait Renderer {
 }
 
 /// renders an editor state to a string
-pub struct StringRenderer();
+pub struct StringRenderer {
+    // only render a particular line in the editor
+    pub line_hint: Option<i32>,
+    pub break_on_line_end: bool,
+}
+
+impl StringRenderer {
+    pub fn new() -> Self {
+        Self {
+            line_hint: None,
+            break_on_line_end: false,
+        }
+    }
+
+    pub fn with_line_hint(line: i32) -> Self {
+        Self {
+            line_hint: Some(line),
+            break_on_line_end: false,
+        }
+    }
+}
 
 impl Renderer for StringRenderer {
     type Output = String;
@@ -61,16 +81,29 @@ impl Renderer for StringRenderer {
         // draw the rectangle
         let mut screen: String = String::with_capacity(opts.view.area() as usize);
 
-        for y in opts.view.y()..opts.view.y() + opts.view.height {
-            for x in opts.view.x()..opts.view.x() + opts.view.width {
+        let width = opts.view.width;
+
+        let height = if let Some(_) = self.line_hint {
+            1
+        } else {
+            opts.view.height
+        };
+
+        let y2 = if let Some(line) = self.line_hint {
+            line
+        } else {
+            opts.view.location.y()
+        };
+
+        let x2 = opts.view.location.x();
+
+        for y in y2..y2 + height {
+            for x in x2..x2 + width {
                 if let Some(cell) = editor.get_cell((x, y)) {
                     screen.push(cell.char);
-                }
-                /* else if x >= 0 {
-                    // conclude this loop and continue to the next line when no characters are found
-                     break;
-                } */
-                else {
+                } else if self.break_on_line_end && x > 0 {
+                    break;
+                } else {
                     screen.push(' ');
                 }
             }

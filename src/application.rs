@@ -24,6 +24,10 @@ where
     pub render_opts: RenderOpts,
     pub exit: bool,
     pub log: String,
+
+    // hint to only render a particular line
+    render_line_hint: Option<i32>,
+    render_break_line_hint: bool,
 }
 
 impl<T> Application<T>
@@ -37,6 +41,8 @@ where
             render_opts: RenderOpts::default(),
             exit: false,
             log: String::new(),
+            render_line_hint: None,
+            render_break_line_hint: false,
         }
     }
 
@@ -113,7 +119,7 @@ where
         macro_rules! move_cursor {
             ($x:expr, $y:expr) => {
                 self.editor.move_cursor(($x, $y));
-                self.render();
+                self.update_cursor_pos();
             };
         }
 
@@ -180,10 +186,16 @@ where
             }
             Char(x) => {
                 self.editor.write(x);
+                self.render_break_line_hint = true;
+                self.render_line_hint = Some(self.editor.cursor_pos().y());
                 self.render();
             }
             Backspace => {
-                self.editor.delete();
+                if let Some(x) = self.editor.delete() {
+                    if x.char != '\n' {
+                        self.render_line_hint = Some(self.editor.cursor_pos().y());
+                    }
+                }
                 self.render();
             }
             Enter => {
@@ -200,11 +212,18 @@ where
         }
     }
 
-    /// render the screen to crossterm
+    /// render the screen to crossterm.
+    /// if self.render_line_hint is not None, only that line will be rendered
     pub fn render(&mut self) {
         self.update_view_size().unwrap();
 
-        let text = StringRenderer().render(&self.editor, self.render_opts);
+        // render a single line if the line hint is not None
+        if let Some(line) = self.render_line_hint {
+            self.render_line(line);
+            return;
+        }
+
+        let text = StringRenderer::new().render(&self.editor, self.render_opts);
 
         let mut stdout = std::io::stdout();
         stdout.execute(MoveTo(0, 0)).unwrap();
@@ -215,6 +234,15 @@ where
         )
         .unwrap();
 
+        self.update_cursor_pos();
+    }
+
+    pub fn clear_render_hints(&mut self) {
+        self.render_break_line_hint = false;
+        self.render_line_hint = None;
+    }
+
+    pub fn update_cursor_pos(&self) {
         if self.render_opts.view.contains(self.editor.cursor_pos()) {
             // place the cursor over the current character
             let x = self.render_opts.view.x();
@@ -224,10 +252,32 @@ where
             let real_x = self.editor.cursor_pos().x() - x;
             let real_y = self.editor.cursor_pos().y() - y;
 
-            stdout
+            std::io::stdout()
                 .execute(MoveTo(real_x as u16, real_y as u16))
                 .unwrap();
         }
+    }
+
+    /// render only a single line of the editor
+    pub fn render_line(&mut self, line: i32) {
+        let ycp = line;
+        let y = ycp - self.render_opts.view.location.y();
+        if self.render_opts.view.contains(Vector2(0, ycp)) {
+            std::io::stdout().execute(MoveTo(0, y as u16)).unwrap();
+            let text = StringRenderer {
+                line_hint: Some(line),
+                break_on_line_end: self.render_break_line_hint,
+            }
+            .render(&self.editor, self.render_opts);
+            print!("{}", text);
+            self.update_cursor_pos();
+            self.clear_render_hints();
+        } else {
+            self.clear_render_hints();
+            // the line is not in view, render normally
+            self.render();
+        }
+
     }
 
     /// update the view size for the renderer
