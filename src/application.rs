@@ -140,6 +140,10 @@ where
                 self.exit = true;
                 self.render();
             }
+            Ctrl('a') => {
+                self.editor.set_cursor(self.render_opts.view.location);
+                self.render();
+            }
             Char(x) => {
                 self.editor.write(x);
                 self.render();
@@ -150,6 +154,14 @@ where
             }
             Enter => {
                 self.editor.write('\n');
+                self.render();
+            }
+            Home => {
+                self.editor.set_cursor((0, self.editor.cursor_pos().y()));
+                self.render();
+            }
+            End => {
+                self.editor.set_cursor((self.editor.line_len() as i32, self.editor.cursor_pos().y()));
                 self.render();
             }
             _ => {}
