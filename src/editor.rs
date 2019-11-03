@@ -44,7 +44,8 @@ type Grid = Vec<Vec<CharCel>>;
 pub struct Vector2(pub i32, pub i32);
 impl Vector2 {
     /// Add two vectors together
-    pub fn add(&self, a: &Self) -> Self {
+    pub fn add(&self, a: impl Into<Self>) -> Self {
+        let a = a.into();
         Self(self.0 + a.0, self.1 + a.1)
     }
     pub fn x(&self) -> i32 {
@@ -52,6 +53,12 @@ impl Vector2 {
     }
     pub fn y(&self) -> i32 {
         self.1
+    }
+}
+
+impl From<&Vector2> for Vector2 {
+    fn from(a: &Vector2) -> Vector2 {
+        a.clone()
     }
 }
 
@@ -118,6 +125,10 @@ impl Editor {
             select_start: None,
             selecting: false,
         };
+    }
+
+    pub fn cursor_pos(&self) -> Vector2 {
+        self.cursor
     }
 
     /// Move the cursor towards the given vector

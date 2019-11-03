@@ -3,17 +3,28 @@
 use crate::editor::{Editor, Vector2};
 
 /// contains parameters for rendering
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct RenderOpts {
-    // the point at which rendering begins
-    view: Rect,
+    pub view: Rect,
 }
 
-#[derive(Clone)]
+impl Default for RenderOpts {
+    fn default() -> Self {
+        Self {
+            view: Rect {
+                location: Vector2(0, 0),
+                width: 0,
+                height: 0,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Rect {
-    location: Vector2,
-    width: i32,
-    height: i32,
+    pub location: Vector2,
+    pub width: i32,
+    pub height: i32,
 }
 
 impl Rect {
@@ -27,6 +38,11 @@ impl Rect {
     }
     pub fn y(&self) -> i32 {
         self.location.y()
+    }
+
+    pub fn contains(&self, p: Vector2) -> bool {
+        return (p.x() >= self.location.x() && p.x() < self.location.x() + self.width) &&
+            (p.y() >= self.location.y() && p.y() < self.location.y() + self.height)
     }
 }
 
@@ -49,10 +65,12 @@ impl Renderer for StringRenderer {
             for x in opts.view.x()..opts.view.x() + opts.view.width {
                 if let Some(cell) = editor.get_cell((x, y)) {
                     screen.push(cell.char);
-                } else if x >= 0 {
+                }
+                /* else if x >= 0 {
                     // conclude this loop and continue to the next line when no characters are found
-                    break;
-                } else {
+                     break;
+                } */
+                else {
                     screen.push(' ');
                 }
             }
