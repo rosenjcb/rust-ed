@@ -2,10 +2,10 @@ use crate::clipboard::Clipboard;
 use crate::editor::{Editor, Vector2};
 use crate::renderer::{RenderOpts, Renderer, StringRenderer};
 
-use crossterm::{cursor::MoveTo, input::{InputEvent, KeyEvent, SyncReader}, screen::{self}, terminal::{self}, ExecutableCommand, Output};
+use crossterm::{cursor::MoveTo, input::{InputEvent, KeyEvent, SyncReader}, screen::{self}, terminal::{self}, ExecutableCommand};
 
-use std::io::BufWriter;
 use std::io::Write;
+use crossterm::input::{MouseEvent, EnableMouseCapture};
 
 /// handles the main application logic
 pub struct Application<T>
@@ -16,6 +16,7 @@ where
     pub clipboard: T,
     pub render_opts: RenderOpts,
     pub exit: bool,
+    pub log: String,
 }
 
 impl<T> Application<T>
@@ -28,6 +29,7 @@ where
             clipboard,
             render_opts: RenderOpts::default(),
             exit: false,
+            log: String::new(),
         }
     }
 
@@ -38,6 +40,9 @@ where
         let _alternate = screen::AlternateScreen::to_alternate(true)?;
         // process keyboard events
         let mut reader = SyncReader;
+
+        // enable mouse capture
+        std::io::stdout().execute(EnableMouseCapture).unwrap();
 
         self.render();
 
@@ -57,7 +62,35 @@ where
     pub fn process_event(&mut self, event: InputEvent) {
         match event {
             InputEvent::Keyboard(event) => self.process_key_event(event),
+            InputEvent::Mouse(event) => self.process_mouse_event(event),
             _ => {}
+        }
+    }
+
+    pub fn process_mouse_event(&mut self, event: MouseEvent) {
+        use MouseEvent::*;
+
+        self.log = "Processing mouse event".to_string();
+
+        // convert screen cordinates into editor coordinates
+        macro_rules! to_editor_coords {
+            ($x:ident, $y:ident) => {
+                {
+                    let Vector2(x2, y2) = self.render_opts.view.location;
+                    ($x + x2, $y + y2)
+                }
+            }
+        }
+
+        match event {
+            Press(_, x, y) => {
+                let (x, y) = (x as i32, y as i32);
+                let (x, y) = to_editor_coords!(x, y);
+                self.log = format!("mouse: set cursor location to {}:{}", x, y);
+                self.editor.set_cursor((x, y));
+                self.render();
+            }
+            _ => { self.log = "unknown mouse event".to_string()}
         }
     }
 
@@ -133,7 +166,7 @@ where
 
         let mut stdout = std::io::stdout();
         stdout.execute(MoveTo(0, 0)).unwrap();
-        write!(&mut stdout, "{}{:?}", text, self.render_opts);
+        write!(&mut stdout, "{}{:?}{}", text, self.render_opts, self.log).unwrap();
 
         if self.render_opts.view.contains(self.editor.cursor_pos()) {
             // place the cursor over the current character
