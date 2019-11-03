@@ -72,7 +72,7 @@ where
 
         self.log = "Processing mouse event".to_string();
 
-        // convert screen cordinates into editor coordinates
+        // convert screen coordinates into editor coordinates
         macro_rules! to_editor_coords {
             ($x:ident, $y:ident) => {
                 {
