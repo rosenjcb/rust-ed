@@ -328,7 +328,7 @@ impl Editor {
             // if a newline was inserted, move down to the beginning of next line
             // move the cursor to the beginning of the next line
             self.cursor.0 = 0;
-            self.move_cursor((0, self.cursor.1 + 1));
+            self.set_cursor((0, self.cursor.1 + 1));
         }
     }
 

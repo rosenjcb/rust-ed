@@ -2,13 +2,7 @@ use crate::clipboard::Clipboard;
 use crate::editor::{Editor, Vector2};
 use crate::renderer::{RenderOpts, Renderer, StringRenderer};
 
-use crossterm::{
-    cursor::MoveTo,
-    input::{InputEvent, KeyEvent, SyncReader},
-    screen::{self},
-    terminal::{self},
-    ExecutableCommand,
-};
+use crossterm::{cursor::MoveTo, input::{InputEvent, KeyEvent, SyncReader}, screen::{self}, terminal::{self}, ExecutableCommand, Output};
 
 use std::io::BufWriter;
 use std::io::Write;
