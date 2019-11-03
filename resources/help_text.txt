@@ -1,0 +1,16 @@
+
+[ =================== Keybindings Reference ======================= ]
+[^] = Ctrl, [|] = Or
+
+F1                      display this help text
+up|down|left|right      move the cursor in the direction of the arrow keys
+^(up|down|left|right)   move the screen in the direction of the arrow keys
+^C                      exit
+^A                      move the cursor to the top left of the current screen location
+^L                      center the screen around the cursor location
+Home                    move cursor to beginning of line
+End                     move cursor to end of line
+F5                      refresh the screen
+
+press F5 or any other key to refresh the screen and exit this menu...
+[ ================================================================== ]

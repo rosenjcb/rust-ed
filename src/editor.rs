@@ -133,7 +133,9 @@ impl Editor {
 
     /// return the length of the current line or zero if not currently on a line
     pub fn line_len(&self) -> usize {
-        self.buffer.get(self.cursor.y() as usize).map_or(0, |row| row.len())
+        self.buffer
+            .get(self.cursor.y() as usize)
+            .map_or(0, |row| row.len())
     }
 
     /// Move the cursor towards the given vector

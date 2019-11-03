@@ -41,8 +41,8 @@ impl Rect {
     }
 
     pub fn contains(&self, p: Vector2) -> bool {
-        return (p.x() >= self.location.x() && p.x() < self.location.x() + self.width) &&
-            (p.y() >= self.location.y() && p.y() < self.location.y() + self.height)
+        return (p.x() >= self.location.x() && p.x() < self.location.x() + self.width)
+            && (p.y() >= self.location.y() && p.y() < self.location.y() + self.height);
     }
 }
 

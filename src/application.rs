@@ -2,10 +2,17 @@ use crate::clipboard::Clipboard;
 use crate::editor::{Editor, Vector2};
 use crate::renderer::{RenderOpts, Renderer, StringRenderer};
 
-use crossterm::{cursor::MoveTo, input::{InputEvent, KeyEvent, SyncReader}, screen::{self}, terminal::{self}, ExecutableCommand};
+use crossterm::{
+    cursor::MoveTo,
+    input::{InputEvent, KeyEvent, SyncReader},
+    screen::{self},
+    terminal::{self},
+    ExecutableCommand,
+};
 
+use crossterm::input::{EnableMouseCapture, MouseEvent};
 use std::io::Write;
-use crossterm::input::{MouseEvent, EnableMouseCapture};
+use crossterm::terminal::ClearType;
 
 /// handles the main application logic
 pub struct Application<T>
@@ -74,12 +81,10 @@ where
 
         // convert screen coordinates into editor coordinates
         macro_rules! to_editor_coords {
-            ($x:ident, $y:ident) => {
-                {
-                    let Vector2(x2, y2) = self.render_opts.view.location;
-                    ($x + x2, $y + y2)
-                }
-            }
+            ($x:ident, $y:ident) => {{
+                let Vector2(x2, y2) = self.render_opts.view.location;
+                ($x + x2, $y + y2)
+            }};
         }
 
         match event {
@@ -90,7 +95,7 @@ where
                 self.editor.set_cursor((x, y));
                 self.render();
             }
-            _ => { self.log = "unknown mouse event".to_string()}
+            _ => self.log = "unknown mouse event".to_string(),
         }
     }
 
@@ -98,15 +103,27 @@ where
         use KeyEvent::*;
 
         macro_rules! move_view {
-            ($x:literal, $y:literal) => {
-                self.render_opts.view.location = self.render_opts.view.location.add(Vector2($x, $y));
+            ($x:expr, $y:expr) => {
+                self.render_opts.view.location =
+                    self.render_opts.view.location.add(Vector2($x, $y));
                 self.render();
             };
         }
 
         macro_rules! move_cursor {
-            ($x:literal, $y:literal) => {
+            ($x:expr, $y:expr) => {
                 self.editor.move_cursor(($x, $y));
+                self.render();
+            };
+        }
+
+        macro_rules! set_cursor {
+            ($x:expr, $y:expr) => {
+                self.editor.set_cursor(($x, $y));
+                self.render();
+            };
+            ($x:expr) => {
+                self.editor.set_cursor($x);
                 self.render();
             };
         }
@@ -136,12 +153,23 @@ where
             CtrlLeft => {
                 move_view!(-1, 0);
             }
-            Ctrl('c') => {
-                self.exit = true;
+            F(1) => {
+                use crossterm::terminal::Clear;
+                std::io::stdout().execute(MoveTo(0, 0)).unwrap();
+                std::io::stdout().execute(Clear(ClearType::All)).unwrap();
+                println!("{}", include_str!("../resources/help_text.txt"));
+            }
+            F(5) => {
                 self.render();
             }
-            Ctrl('a') => {
-                self.editor.set_cursor(self.render_opts.view.location);
+            Ctrl('c') => {
+                self.exit = true;
+            }
+            Ctrl('a') => {  // bring the cursor to the top of the viewport
+                set_cursor!((0, self.render_opts.view.location.y() + (self.render_opts.view.height / 2)));
+            }
+            Ctrl('l') => { // center the screen on the cursor
+                self.render_opts.view.location.1 = self.editor.cursor_pos().y() - (self.render_opts.view.height / 2);
                 self.render();
             }
             Char(x) => {
@@ -157,12 +185,10 @@ where
                 self.render();
             }
             Home => {
-                self.editor.set_cursor((0, self.editor.cursor_pos().y()));
-                self.render();
+                set_cursor!(0, self.editor.cursor_pos().y());
             }
             End => {
-                self.editor.set_cursor((self.editor.line_len() as i32, self.editor.cursor_pos().y()));
-                self.render();
+                set_cursor!(self.editor.line_len() as i32, self.editor.cursor_pos().y());
             }
             _ => {}
         }
@@ -174,11 +200,10 @@ where
 
         let text = StringRenderer().render(&self.editor, self.render_opts);
 
-        //        std::fs::write("render_contents.txt", &text).unwrap();
 
         let mut stdout = std::io::stdout();
         stdout.execute(MoveTo(0, 0)).unwrap();
-        write!(&mut stdout, "{}{:?}{}", text, self.render_opts, self.log).unwrap();
+        write!(&mut stdout, "{}[F1 to display help ] {:?}{}", text, self.render_opts, self.log).unwrap();
 
         if self.render_opts.view.contains(self.editor.cursor_pos()) {
             // place the cursor over the current character
@@ -189,7 +214,9 @@ where
             let real_x = self.editor.cursor_pos().x() - x;
             let real_y = self.editor.cursor_pos().y() - y;
 
-            stdout.execute(MoveTo(real_x as u16, real_y as u16)).unwrap();
+            stdout
+                .execute(MoveTo(real_x as u16, real_y as u16))
+                .unwrap();
         }
     }
 
