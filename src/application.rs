@@ -11,8 +11,8 @@ use crossterm::{
 };
 
 use crossterm::input::{EnableMouseCapture, MouseEvent};
-use std::io::Write;
 use crossterm::terminal::ClearType;
+use std::io::Write;
 
 /// handles the main application logic
 pub struct Application<T>
@@ -46,7 +46,7 @@ where
         // switch to the alternate screen
         let _alternate = screen::AlternateScreen::to_alternate(true)?;
         // process keyboard events
-        let mut reader = SyncReader;
+        let mut reader = SyncReader {};
 
         // enable mouse capture
         std::io::stdout().execute(EnableMouseCapture).unwrap();
@@ -165,11 +165,17 @@ where
             Ctrl('c') => {
                 self.exit = true;
             }
-            Ctrl('a') => {  // bring the cursor to the top of the viewport
-                set_cursor!((0, self.render_opts.view.location.y() + (self.render_opts.view.height / 2)));
+            Ctrl('a') => {
+                // bring the cursor to the top of the viewport
+                set_cursor!((
+                    0,
+                    self.render_opts.view.location.y() + (self.render_opts.view.height / 2)
+                ));
             }
-            Ctrl('l') => { // center the screen on the cursor
-                self.render_opts.view.location.1 = self.editor.cursor_pos().y() - (self.render_opts.view.height / 2);
+            Ctrl('l') => {
+                // center the screen on the cursor
+                self.render_opts.view.location.1 =
+                    self.editor.cursor_pos().y() - (self.render_opts.view.height / 2);
                 self.render();
             }
             Char(x) => {
@@ -200,10 +206,14 @@ where
 
         let text = StringRenderer().render(&self.editor, self.render_opts);
 
-
         let mut stdout = std::io::stdout();
         stdout.execute(MoveTo(0, 0)).unwrap();
-        write!(&mut stdout, "{}[F1 to display help ] {:?}{}", text, self.render_opts, self.log).unwrap();
+        write!(
+            &mut stdout,
+            "{}[F1 to display help ] {:?}{}",
+            text, self.render_opts, self.log
+        )
+        .unwrap();
 
         if self.render_opts.view.contains(self.editor.cursor_pos()) {
             // place the cursor over the current character
