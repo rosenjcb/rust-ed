@@ -1,7 +1,6 @@
 //! editor state. controls operations such as reading and writing text.
 #![allow(unused_variables, dead_code)]
 
-// TODO: add cut, and copy functions that operate on the current selection
 // TODO: Make the write function erase the current selection before beginning a write
 
 use std::collections::VecDeque;
@@ -10,7 +9,7 @@ use std::collections::VecDeque;
 /// Contains color values and other metadata
 #[derive(Copy, Clone)]
 pub struct CharCel {
-    char: char,
+    pub char: char,
     fg_on: bool,
     bg_on: bool,
     fg: u16,
@@ -42,11 +41,24 @@ type Grid = Vec<Vec<CharCel>>;
 
 /// Very simple vector implementation
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Vector2(i32, i32);
+pub struct Vector2(pub i32, pub i32);
 impl Vector2 {
     /// Add two vectors together
-    fn add(&self, a: &Self) -> Self {
+    pub fn add(&self, a: impl Into<Self>) -> Self {
+        let a = a.into();
         Self(self.0 + a.0, self.1 + a.1)
+    }
+    pub fn x(&self) -> i32 {
+        self.0
+    }
+    pub fn y(&self) -> i32 {
+        self.1
+    }
+}
+
+impl From<&Vector2> for Vector2 {
+    fn from(a: &Vector2) -> Vector2 {
+        a.clone()
     }
 }
 
@@ -113,6 +125,17 @@ impl Editor {
             select_start: None,
             selecting: false,
         };
+    }
+
+    pub fn cursor_pos(&self) -> Vector2 {
+        self.cursor
+    }
+
+    /// return the length of the current line or zero if not currently on a line
+    pub fn line_len(&self) -> usize {
+        self.buffer
+            .get(self.cursor.y() as usize)
+            .map_or(0, |row| row.len())
     }
 
     /// Move the cursor towards the given vector
@@ -190,6 +213,42 @@ impl Editor {
     pub fn clear_selection(&mut self) {
         self.select_start = None;
         self.selecting = false;
+    }
+
+    /// copy the selected text
+    pub fn copy(&self) -> Option<Vec<CharCel>> {
+        if self.selecting {
+            Some(self.copy_range(self.select_start.unwrap(), self.cursor))
+        } else {
+            None
+        }
+    }
+
+    /// cut the selected text
+    pub fn cut(&mut self) -> Option<Vec<CharCel>> {
+        if self.selecting {
+            self.selecting = false;
+            Some(self.cut_range(self.select_start.unwrap(), self.cursor))
+        } else {
+            None
+        }
+    }
+
+    /// return the character at location
+    pub fn get_cell(&self, location: impl Into<Vector2>) -> Option<CharCel> {
+        let location = location.into();
+
+        self.buffer
+            .get(location.y() as usize)
+            .map(|row| row.get(location.x() as usize).map(|x| x.clone()))
+            .and_then(|x| match x {
+                Some(x) => Some(x),
+                None => None,
+            })
+    }
+
+    pub fn get_row(&self, line: i32) -> Option<&Vec<CharCel>> {
+        self.buffer.get(line as usize)
     }
 
     /// Copy the text at location `from` to location `to`
@@ -280,7 +339,7 @@ impl Editor {
             // if a newline was inserted, move down to the beginning of next line
             // move the cursor to the beginning of the next line
             self.cursor.0 = 0;
-            self.move_cursor((0, self.cursor.1 + 1));
+            self.set_cursor((0, self.cursor.1 + 1));
         }
     }
 
@@ -337,7 +396,6 @@ impl Editor {
         if self.selecting {
             self.selecting = false;
             self.cut_range(self.select_start.unwrap(), self.cursor.clone());
-            self.select_start = None;
         }
 
         // store the original length of the previous row to jump to when the line below it is deleted
@@ -436,7 +494,9 @@ mod test {
         let test_cases = vec![
             (0, 0, 6, 1),
             (20, 20, 0, 100),
-            (100, 29, 3, 40)
+            (100, 29, 3, 40),
+            (30, 30, 50, 0),
+            (100, 100, 0, 0),
         ];
 
         for (x, y, x2, y2) in test_cases {
