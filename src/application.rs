@@ -2,17 +2,17 @@ use crate::clipboard::Clipboard;
 use crate::editor::{Editor, Vector2};
 use crate::renderer::{RenderOpts, Renderer, StringRenderer};
 
-use crossterm::{
-    cursor::MoveTo,
-    input::{InputEvent, KeyEvent, SyncReader},
-    screen::{self},
-    terminal::{self},
-    ExecutableCommand,
-};
+use crossterm::{cursor::MoveTo, terminal::{self}, ExecutableCommand, QueueableCommand};
 
-use crossterm::input::{EnableMouseCapture, MouseEvent};
-use crossterm::terminal::ClearType;
+use crossterm::terminal::{ClearType, Clear};
+
 use std::io::Write;
+use std::borrow::Borrow;
+use crossterm::event::{EnableMouseCapture, MouseEvent, KeyEvent, read, Event, MouseButton};
+use crossterm::event::KeyCode;
+use crossterm::event::KeyModifiers;
+use crossterm::style;
+use crossterm::style::Color;
 
 /// handles the main application logic
 pub struct Application<T>
@@ -50,10 +50,7 @@ where
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // enter raw mode
         // switch to the alternate screen
-        let _alternate = screen::AlternateScreen::to_alternate(true)?;
-        // process keyboard events
-        let mut reader = SyncReader {};
-
+        let _alternate = terminal::EnterAlternateScreen;
         // enable mouse capture
         std::io::stdout().execute(EnableMouseCapture).unwrap();
 
@@ -61,28 +58,27 @@ where
 
         loop {
             if self.exit {
+                //maybe stuff clear command into render function?
+                std::io::stdout().execute(Clear(ClearType::All)).unwrap();
                 break Ok(());
             }
 
-            if let Some(event) = reader.next() {
-                self.process_event(event);
-            }
-
+            self.process_event();
             // thread::sleep(std::time::Duration::from_millis(50));
         }
     }
 
-    pub fn process_event(&mut self, event: InputEvent) {
-        match event {
-            InputEvent::Keyboard(event) => self.process_key_event(event),
-            InputEvent::Mouse(event) => self.process_mouse_event(event),
+    pub fn process_event(&mut self) -> crossterm::Result<()> {
+        match read()? {
+            Event::Key(event) => self.process_key_event(event),
+            Event::Mouse(event) => self.process_mouse_event(event),
             _ => {}
         }
+
+        Ok(())
     }
 
     pub fn process_mouse_event(&mut self, event: MouseEvent) {
-        use MouseEvent::*;
-
         self.log = "Processing mouse event".to_string();
 
         // convert screen coordinates into editor coordinates
@@ -93,21 +89,21 @@ where
             }};
         }
 
+        let _empty = KeyModifiers::empty();
+
         match event {
-            Press(_, x, y) => {
+            MouseEvent::Down(MouseButton::Left, x, y, _empty) => {
                 let (x, y) = (x as i32, y as i32);
                 let (x, y) = to_editor_coords!(x, y);
                 self.log = format!("mouse: set cursor location to {}:{}", x, y);
                 self.editor.set_cursor((x, y));
                 self.render();
-            }
+            },
             _ => self.log = "unknown mouse event".to_string(),
         }
     }
 
     pub fn process_key_event(&mut self, event: KeyEvent) {
-        use KeyEvent::*;
-
         macro_rules! move_view {
             ($x:expr, $y:expr) => {
                 self.render_opts.view.location =
@@ -134,63 +130,81 @@ where
             };
         }
 
-        match event {
-            Down => {
+        match event.code {
+            KeyCode::Down if event.modifiers.is_empty() => {
                 move_cursor!(0, 1);
-            }
-            Up => {
+            },
+            KeyCode::Up if event.modifiers.is_empty() => {
                 move_cursor!(0, -1);
-            }
-            Right => {
+            },
+            KeyCode::Right if event.modifiers.is_empty() => {
                 move_cursor!(1, 0);
-            }
-            Left => {
+            },
+            KeyCode::Left if event.modifiers.is_empty() => {
+                move_cursor!(-1, 0);
+            },
+            KeyCode::Down if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                move_view!(0, 1);
+            },
+            KeyCode::Up if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                move_view!(0, -1);
+            },
+            KeyCode::Right if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                move_view!(1, 0);
+            },
+            KeyCode::Left if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                move_view!(-1, 0);
+            },
+            KeyCode::Right if event.modifiers.contains(KeyModifiers::SHIFT) => {
+                if !self.editor.is_selecting() {
+                    self.editor.begin_select();
+                }
+                move_cursor!(1, 0);
+            },
+            KeyCode::Left if event.modifiers.contains(KeyModifiers::SHIFT) => {
+                if !self.editor.is_selecting() {
+                    self.editor.begin_select();
+                }
                 move_cursor!(-1, 0);
             }
-            CtrlDown => {
-                move_view!(0, 1);
-            }
-            CtrlUp => {
-                move_view!(0, -1);
-            }
-            CtrlRight => {
-                move_view!(1, 0);
-            }
-            CtrlLeft => {
-                move_view!(-1, 0);
-            }
-            F(1) => {
-                use crossterm::terminal::Clear;
+            KeyCode::F(1) => {
                 std::io::stdout().execute(MoveTo(0, 0)).unwrap();
                 std::io::stdout().execute(Clear(ClearType::All)).unwrap();
                 println!("{}", include_str!("../resources/help_text.txt"));
             }
-            F(5) => {
+            KeyCode::F(5) => {
                 self.render();
             }
-            Ctrl('c') => {
-                self.exit = true;
+            KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.editor.copy();
             }
-            Ctrl('a') => {
+            KeyCode::Char('a') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                 // bring the cursor to the top of the viewport
+                //self.editor.begin_select_at();
                 set_cursor!((
                     0,
                     self.render_opts.view.location.y() + (self.render_opts.view.height / 2)
                 ));
             }
-            Ctrl('l') => {
+            KeyCode::Char('l') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                 // center the screen on the cursor
                 self.render_opts.view.location.1 =
                     self.editor.cursor_pos().y() - (self.render_opts.view.height / 2);
                 self.render();
+            },
+            KeyCode::Char('b') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.exit = true;
+            },
+            KeyCode::Char('v') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.clipboard.paste().unwrap();
             }
-            Char(x) => {
+            KeyCode::Char(x) => {
                 self.editor.write(x);
                 self.render_break_line_hint = true;
                 self.render_line_hint = Some(self.editor.cursor_pos().y());
                 self.render();
             }
-            Backspace => {
+            KeyCode::Backspace => {
                 if let Some(x) = self.editor.delete() {
                     if x.char != '\n' {
                         self.render_line_hint = Some(self.editor.cursor_pos().y());
@@ -198,14 +212,14 @@ where
                 }
                 self.render();
             }
-            Enter => {
+            KeyCode::Enter => {
                 self.editor.write('\n');
                 self.render();
             }
-            Home => {
+            KeyCode::Home => {
                 set_cursor!(0, self.editor.cursor_pos().y());
             }
-            End => {
+            KeyCode::End => {
                 set_cursor!(self.editor.line_len() as i32, self.editor.cursor_pos().y());
             }
             _ => {}
@@ -215,6 +229,11 @@ where
     /// render the screen to crossterm.
     /// if self.render_line_hint is not None, only that line will be rendered
     pub fn render(&mut self) {
+        let mut stdout = std::io::stdout();
+        // if self.exit {
+        //     stdout.execute(Clear(ClearType::All)).unwrap();
+        //     ()
+        // }
         self.update_view_size().unwrap();
 
         // render a single line if the line hint is not None
@@ -225,12 +244,14 @@ where
 
         let text = StringRenderer::new().render(&self.editor, self.render_opts);
 
-        let mut stdout = std::io::stdout();
+        // stdout
+        //     .execute(MoveTo(0,0)).unwrap()
+        //     .execute(style::Print(self.editor.get_cell(Vector2(0, 0)).unwrap()));
         stdout.execute(MoveTo(0, 0)).unwrap();
         write!(
             &mut stdout,
-            "{}[F1 to display help ] {:?}{}",
-            text, self.render_opts, self.log
+            "{}[F1 to display help ] {:?} Selection:{}",
+            text, self.render_opts, self.editor.selection()
         )
         .unwrap();
 

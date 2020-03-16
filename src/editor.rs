@@ -4,6 +4,8 @@
 // TODO: Make the write function erase the current selection before beginning a write
 
 use std::collections::VecDeque;
+use crossterm::style::{Color, style, StyledContent};
+use std::fmt::{Formatter, Error};
 
 /// Information for a particular character cell.
 /// Contains color values and other metadata
@@ -12,9 +14,10 @@ pub struct CharCel {
     pub char: char,
     fg_on: bool,
     bg_on: bool,
-    fg: u16,
-    bg: u16,
+    fg: Color,
+    bg: Color,
 }
+
 
 impl Default for CharCel {
     fn default() -> Self {
@@ -22,8 +25,8 @@ impl Default for CharCel {
             char: '0',
             fg_on: false,
             bg_on: false,
-            fg: 0,
-            bg: 0,
+            fg: Color::White,
+            bg: Color::Black,
         };
     }
 }
@@ -35,6 +38,41 @@ impl From<char> for CharCel {
         return x;
     }
 }
+
+
+impl std::fmt::Display for CharCel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let styled = style(self.char).on(self.bg).with(self.fg);
+        write!(f, "{}", styled)
+    }
+}
+
+// #[derive(Copy, Clone)]
+pub struct StringCel {
+    vec: Vec<CharCel>
+}
+
+impl From<Vec<CharCel>> for StringCel {
+    fn from(vec: Vec<CharCel>) -> Self {
+        return Self {
+            vec
+        }
+    }
+}
+
+impl std::fmt::Display for StringCel{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.vec.iter()
+           .map(|x| write!(f, "{}", style(x.char).on(x.bg).with(x.fg)));
+        Ok(())
+    }
+}
+
+// impl std::iter::FromIterator for CharCel {
+//     fn from_iter<T: IntoIterator<Item=A>>(iter: T) -> Self {
+//
+//     }
+// }
 
 // TODO: create a trait for operations on a grid
 type Grid = Vec<Vec<CharCel>>;
@@ -205,6 +243,7 @@ impl Editor {
 
     /// set the selection to start from the given coordinate
     pub fn begin_select_at(&mut self, loc: impl Into<Vector2>) {
+        self.buffer
         self.select_start = Some(loc.into());
         self.selecting = true;
     }
@@ -448,19 +487,53 @@ impl Editor {
 
         None
     }
+
+    pub fn selection(&self) -> String {
+
+        let res: String = match self.copy() {
+            Some(range) => {
+                let s: String = range.into_iter().map(|c| c.char).collect();
+                s
+            }
+
+            None => String::from("*NO TEXT*")
+        };
+        res
+    }
+
+    pub fn is_selecting(&self) -> bool {
+        // let mut stdout = stdout();
+        // execute!(stdout());
+        self.selecting
+    }
 }
+
 
 /// Return the contents of the buffer as a string
 impl std::fmt::Display for Editor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let char_cells = vec![CharCel::from('b'), CharCel::from('c')];
+        // let char_cells: Vec<Vec<CharCel>> = self
+        //     .buffer
+        //     .iter()
+        //     .map(|x| x.iter().map(|x| x).collect::<Vec<CharCel>>())
+        //     .collect();
+
+        let d: Vec<CharCel> = self.buffer
+            .iter()
+            .flat_map(|x| x )
+            .map(|x| *x)
+            .collect();
+
+        let s = StringCel::from(d);
+
         let text: String = self
             .buffer
             .iter()
             .map(|x| x.iter().map(|x| x.char).collect::<String>())
             .collect::<Vec<String>>()
             .join("\n");
-
-        write!(f, "{}", text)
+        write!(f, "{}", s)
     }
 }
 
@@ -468,6 +541,7 @@ impl std::fmt::Display for Editor {
 mod test {
     use super::*;
     use std::cmp::Ordering;
+    use core::panicking::panic;
 
     const TEST_STRING: &'static str = include_str!("../resources/sample_text.txt");
 
