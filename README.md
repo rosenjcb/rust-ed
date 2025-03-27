@@ -17,8 +17,7 @@ Start by cloning the project to your local machine:
 ```bash
 git clone https://github.com/rosenjcb/rust-ed
 cd rust-ed
-
-
+```
 
 Install Dependencies
 To install the dependencies specified in Cargo.toml, run:
